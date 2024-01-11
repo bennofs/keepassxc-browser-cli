@@ -11,11 +11,13 @@ enum CommandType {
 interface GetLoginData {
     type: CommandType.GetLogin;
     url: string;
+    all: boolean;
 }
 
 interface GetPasswordData {
     type: CommandType.GetPassword;
     url: string;
+    login?: string;
 }
 
 type CommandData = GetLoginData | GetPasswordData;
@@ -47,15 +49,19 @@ async function main() {
 
     program.command("get-login <url>")
            .description("Gets the login name for the specified URL.")
-           .action(url => command = {
+           .option('-a, --all', 'Display all matching entries, not just the first.')
+           .action((url, opts) => command = {
                type: CommandType.GetLogin,
-               url: url
+               url: url,
+               all: opts.all,
            });
     program.command("get-pw <url>")
            .description("Gets the password for the specified URL.")
-           .action(url => command = {
+           .option('-l, --login <login>', 'Get password for the entry with the specified login, instead of the first matching one')
+           .action((url, opts) => command = {
                type: CommandType.GetPassword,
-               url: url
+               url: url,
+               login: opts.login,
            });
 
     program.parse(process.argv);
@@ -78,9 +84,31 @@ async function main() {
                 }
 
                 if (command.type === CommandType.GetLogin) {
-                    console.log(logins[0].login);
+                    if (command.all) {
+                        for (const login of logins) {
+                            console.log(login.login);
+                        }
+                    } else {
+                        console.log(logins[0].login);
+                    }
                 } else {
-                    console.log(logins[0].password);
+                    if (command.login) {
+                        let found = null;
+                        for (const login of logins) {
+                            if (login.login == command.login) {
+                                found = login;
+                                break;
+                            }
+                        }
+
+                        if (found == null) {
+                            throw new Error("No entry found for login name " + command.login + ".")
+                        }
+
+                        console.log(found.password)
+                    } else {
+                        console.log(logins[0].password);
+                    }
                 }
                 break;
             }
